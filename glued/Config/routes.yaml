@@ -1,0 +1,87 @@
+---
+routes:
+
+    #########################################################
+    # settlement / NODES                                          #
+    #########################################################
+
+    be_settlement:
+        service:    settlement
+        path:       /api/settlement
+        pattern:    /api/settlement
+        label:      settlement
+        dscr:       A routegroup, no methods here.
+
+    #########################################################
+    # settlement / HEALTH                                         #
+    #########################################################
+
+    be_settlement_health_v1:
+        pattern:    ${routes.be_settlement.path}/health/v1
+        path:       ${routes.be_settlement.path}/health/v1
+        label:      settlement health
+        dscr:       A healthcheck endpoint for the microservice.
+        service:    settlement
+        provides:   health
+        methods:
+            get:    Glued\Controllers\ServiceController:health
+
+  #########################################################
+  # settlement / persons                                    #
+  #########################################################
+
+    be_settlement_items_v1:
+      pattern:    ${routes.be_settlement.path}/items/v1
+      path:       ${routes.be_settlement.path}/items/v1
+      label:      Settlements
+      dscr:       Settlement items - external and internal (invoices, receipts, etc.). The relationship between settlement items and transactions is m:n (i.e. a contract is settled each month by transactions to the contractor, the social and health security, and the tax office) 
+      service:    settlement
+      methods:
+        get:    Glued\Controllers\ServiceController:items_r1
+
+    be_settlement_acclines_v1:
+      pattern:    ${routes.be_settlement.path}/acclines/v1
+      path:       ${routes.be_settlement.path}/acclines/v1
+      label:      Accounting lines
+      dscr:       Accounting (virtual) lines of settlement items. A single item consists of 1 to n lines. Account lines should eventually have a tag assigned.
+      service:    settlement
+      methods:
+        get:    Glued\Controllers\ServiceController:acclines_r1
+
+
+    be_settlement_trx_v1:
+      pattern:    ${routes.be_settlement.path}/trx/v1
+      path:       ${routes.be_settlement.path}/trx/v1
+      label:      Transactions
+      dscr:       Transactions (banking, cash, virtual) relevant to a setllement accline.
+      service:    settlement
+      methods:
+        get:    Glued\Controllers\ServiceController:trx_r1
+
+    be_settlement_tags_v1:
+      pattern:    ${routes.be_settlement.path}/tags/v1
+      path:       ${routes.be_settlement.path}/tags/v1
+      label:      Tags
+      dscr:       List of settlement tags.
+      service:    settlement
+      methods:
+        get:    Glued\Controllers\ServiceController:rels_r1
+
+    be_settlement_projects_v1:
+      pattern:    ${routes.be_settlement.path}/projects/v1
+      path:       ${routes.be_settlement.path}/projects/v1
+      label:      Projects
+      dscr:       List of projects applicable to the year.
+      service:    settlement
+      methods:
+        get:    Glued\Controllers\ServiceController:projects_r1
+
+    be_settlement_project_tags_v1:
+      pattern:    ${routes.be_settlement.path}/project-tags/v1
+      path:       ${routes.be_settlement.path}/project-tags/v1
+      label:      Project tags
+      dscr:       List of applicable project tags.
+      service:    settlement
+      methods:
+        get:    Glued\Controllers\ServiceController:project_tags_r1
+
