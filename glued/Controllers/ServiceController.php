@@ -20,23 +20,6 @@ class ServiceController extends AbstractController
 {
 
     /**
-     * Returns an exception.
-     * @param  Request  $request  
-     * @param  Response $response 
-     * @param  array    $args     
-     * @return Response Json result set.
-     */
-    public function stub(Request $request, Response $response, array $args = []): Response {
-        throw new \Exception('Stub method served where it shouldn\'t. Proxy misconfiguration?');
-    }
-
-
-    public function _r1(Request $request, Response $response, array $args = []): Response {
-        return $this->BuildResponse($response, $res, meta: $meta, fmt: $fmt);
-    }
-
-
-    /**
      * Returns a health status response.
      * @param  Request  $request  
      * @param  Response $response 
@@ -44,35 +27,57 @@ class ServiceController extends AbstractController
      * @return Response Json result set.
      */
     public function health(Request $request, Response $response, array $args = []): Response {
-        $srv = $this->settings['sqlsrv']['hostname'];
-        $cnf = [
-            "Database" => $this->settings['sqlsrv']['database'],
-            "UID" =>  $this->settings['sqlsrv']['username'],
-            "PWD" =>  $this->settings['sqlsrv']['password']
-            ];
-
-        $status = "OK";
-        $messages = [];
-        $conn = sqlsrv_connect($srv,$cnf);
-        if ($conn) {
-           $status = 'OK';
-        } else {
-            $messages = sqlsrv_errors();
-            $status = 'Degraded';
-        }
         $params = $request->getQueryParams();
         $data = [
                 'timestamp' => microtime(),
-                'status' => $status,
                 'params' => $params,
                 'service' => basename(__ROOT__),
                 'provided-for' => $_SERVER['X-GLUED-AUTH-UUID'] ?? 'anon',
-                'hint' => $messages
             ];
         return $response->withJson($data);
     }
 
 
+    private function accounts($account = null): mixed
+    {
+        $wq = "";
+        $wd = [];
+        if ($account) { $wq = " AND uuid = uuid_to_bin(?, true)"; $wd[] = $account; }
+        $q = "SELECT 
+                bin_to_uuid(acc.uuid, true) as uuid,
+                acc.data
+              FROM t_settlement_accounts acc 
+              WHERE 1=1 {$wq}";
+        $res = $this->mysqli->execute_query($q, $wd);
+        //return $res->fetch_all(MYSQLI_ASSOC);
+        foreach ($res as $k=>$i) {
+            $d[$k] = $i;
+            $d[$k]['data'] = json_decode($i['data'], true);
+        }
+        return $d ?? false;
+    }
+
+    private function transactions($trx = null): mixed
+    {
+        $wq = "";
+        $wd = [];
+        $trx = $args['uuid'] ?? false;
+        if ($trx) { $wq = " AND uuid = uuid_to_bin(?, true)"; $wd[] = $trx; }
+        $q = "SELECT
+                acc.ext_fid as account,
+                bin_to_uuid(trx.uuid, true) as uuid,
+                trx.data
+              FROM t_settlement_transactions trx
+              LEFT JOIN t_settlement_accounts acc ON trx.account = acc.uuid
+              WHERE 1=1";
+        $res = $this->mysqli->execute_query($q, $wd);
+        // return $res->fetch_all(MYSQLI_ASSOC);
+        foreach ($res as $k=>$i) {
+            $d[$k] = $i;
+            $d[$k]['data'] = json_decode($i['data'], true);
+        }
+        return $d ?? false;
+    }
 
     /**
      * Returns a health status response.
@@ -81,23 +86,17 @@ class ServiceController extends AbstractController
      * @param  array    $args
      * @return Response Json result set.
      */
-    public function rels_r1(Request $request, Response $response, array $args = []): Response
+    public function accounts_r1(Request $request, Response $response, array $args = []): Response
     {
-        $rp = $request->getQueryParams();
-        $qp = null;
-        $qs = <<<EOT
-        select 
-                json_merge_preserve(
-                    json_object("uuid", bin_to_uuid( `c_uuid`, true)),
-                    `c_data`
-                ) as res_rows
-        from `t_fare_rels`
-        EOT;
-        $qs = (new \Glued\Lib\QueryBuilder())->select($qs);
-        $wm = [ 'tags' => 'json_contains(`c_data`->>"$.tags", ?)' ];
-        $this->utils->mysqlJsonQueryFromRequest($rp, $qs, $qp, $wm);
-        $res = $this->db->rawQuery($qs, $qp);
-        return $this->utils->mysqlJsonResponse($response, $res);
+        $data = $this->accounts($args['uuid'] ?? false);
+        return $response->withJson(['data' => $data]);
     }
+
+    public function transactions_r1(Request $request, Response $response, array $args = []): Response
+    {
+        $data = $this->transactions($args['uuid'] ?? false);
+        return $response->withJson(['data' => $data]);
+    }
+
 
 }
