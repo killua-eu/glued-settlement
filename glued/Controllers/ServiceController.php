@@ -62,8 +62,7 @@ class ServiceController extends AbstractController
         $wq = "";
         $wd = [];
         $args = array_merge(...array_values($args));
-        //print_r($trx);
-        //print_r($args);
+
         // Get a single transaction
         if ($trx) {
             $wq .= " AND uuid = uuid_to_bin(?, true)";
@@ -78,7 +77,7 @@ class ServiceController extends AbstractController
             // Handle non-numeric and non-date arguments for the reference field using LIKE
             foreach ($args as $arg) {
                 if (!is_numeric($arg) && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $arg)) {
-                    $wq .= " AND JSON_SEARCH(trx.data, 'all', ?);";
+                    $wq .= " AND JSON_SEARCH(trx.data, 'all', ? COLLATE utf8mb4_0900_ai_ci)";
                     $wd[] = "%" . $arg . "%";
                 }
             }
